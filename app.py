@@ -1117,7 +1117,6 @@ else:
     kolon1.metric(
     "Geçerli analiz",
     len(tablo),
-)
     )
 
     kolon2.metric(
