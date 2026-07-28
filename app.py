@@ -622,12 +622,39 @@ def hisseyi_analiz_et(
         and dipten_toparlanma < 8
     )
 
+    # ERKEN AL: Hareket henüz büyümeden oluşan ilk toparlanmayı arar.
+    # Kesinleşmiş AL kadar güçlü değildir; grafik kontrolü gerektirir.
+    onceki_ema7 = float(onceki["EMA7"])
+    ema7_yeni_alindi = (
+        float(onceki["Close"]) <= onceki_ema7
+        and fiyat > ema7
+    )
+
+    erken_hacim = hacim_orani >= max(1.0, hacim_carpani * 0.80)
+
+    erken_al_sartlari = (
+        dipten_toparlanma >= max(0.7, min_toparlanma * 0.70)
+        and dipten_toparlanma < 5
+        and gunluk_degisim < 4
+        and 35 <= rsi <= 60
+        and rsi > onceki_rsi
+        and erken_hacim
+        and yesil_mum
+        and (ema7_ustu or ema7_yeni_alindi)
+        and macd_gucleniyor
+        and cmf > -0.05
+        and puan >= max(60, min_puan - 10)
+    )
+
     if asiri_uzamis:
         sinyal = "GEÇ KALINDI"
-    elif puan >= 88 and temel_al_sartlari:
+    elif puan >= 84 and temel_al_sartlari:
         sinyal = "GÜÇLÜ AL"
     elif puan >= min_puan and temel_al_sartlari:
         sinyal = "AL"
+    elif erken_al_sartlari:
+        sinyal = "ERKEN AL"
+        nedenler.append("Erken dönüş yapısı")
     elif puan >= max(min_puan - 10, 0):
         sinyal = "İZLE"
     else:
@@ -692,7 +719,7 @@ with st.sidebar:
         "Minimum AL puanı",
         min_value=40,
         max_value=90,
-        value=75,
+        value=70,
         step=5,
     )
 
@@ -700,7 +727,7 @@ with st.sidebar:
         "Minimum hacim çarpanı",
         min_value=0.5,
         max_value=4.0,
-        value=1.5,
+        value=1.2,
         step=0.1,
     )
 
@@ -708,7 +735,7 @@ with st.sidebar:
         "Dipten minimum toparlanma",
         min_value=0.5,
         max_value=10.0,
-        value=1.5,
+        value=1.0,
         step=0.1,
         format="%.1f%%",
     )
@@ -717,7 +744,7 @@ with st.sidebar:
         "Minimum mum hacmi",
         min_value=0,
         max_value=100,
-        value=5,
+        value=3,
         step=1,
         format="%d milyon TL",
     )
@@ -771,7 +798,7 @@ if not tara:
 
     kolon1.metric("Taranabilir hisse", len(hisse_listesi))
     kolon2.metric("Varsayılan zaman", "1 Saat")
-    kolon3.metric("Varsayılan AL puanı", "75")
+    kolon3.metric("Varsayılan AL puanı", "70")
 
     st.info(
         "Sol menüden **Tüm BIST** seçiliyken "
@@ -915,9 +942,10 @@ else:
     sinyal_sirasi = {
         "GÜÇLÜ AL": 1,
         "AL": 2,
-        "İZLE": 3,
-        "GEÇ KALINDI": 4,
-        "ZAYIF": 5,
+        "ERKEN AL": 3,
+        "İZLE": 4,
+        "GEÇ KALINDI": 5,
+        "ZAYIF": 6,
     }
 
     tablo["_sira"] = tablo["Sinyal"].map(sinyal_sirasi).fillna(9)
@@ -934,18 +962,21 @@ else:
 
     guclu_al_sayisi = int((tablo["Sinyal"] == "GÜÇLÜ AL").sum())
     al_sayisi = int((tablo["Sinyal"] == "AL").sum())
+    erken_al_sayisi = int((tablo["Sinyal"] == "ERKEN AL").sum())
     izle_sayisi = int((tablo["Sinyal"] == "İZLE").sum())
     gec_kalindi_sayisi = int(
         (tablo["Sinyal"] == "GEÇ KALINDI").sum()
     )
 
-    kolon1, kolon2, kolon3, kolon4, kolon5 = st.columns(5)
+    kolon1, kolon2, kolon3 = st.columns(3)
+    kolon4, kolon5, kolon6 = st.columns(3)
 
     kolon1.metric("Geçerli analiz", len(tablo))
     kolon2.metric("Güçlü AL", guclu_al_sayisi)
     kolon3.metric("AL", al_sayisi)
-    kolon4.metric("İzle", izle_sayisi)
-    kolon5.metric("Geç kalındı", gec_kalindi_sayisi)
+    kolon4.metric("Erken AL", erken_al_sayisi)
+    kolon5.metric("İzle", izle_sayisi)
+    kolon6.metric("Geç kalındı", gec_kalindi_sayisi)
 
     st.caption(
         f"Aday: {len(taranacaklar)} · "
@@ -962,7 +993,7 @@ else:
 
     if sadece_al:
         ekran_tablosu = tablo[
-            tablo["Sinyal"].isin(["GÜÇLÜ AL", "AL"])
+            tablo["Sinyal"].isin(["GÜÇLÜ AL", "AL", "ERKEN AL"])
         ].copy()
     else:
         ekran_tablosu = tablo.copy()
