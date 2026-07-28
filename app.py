@@ -746,7 +746,7 @@ def hisseyi_analiz_et(
 
     puan = min(puan, 100)
 
-    if puan >= 82:
+    if puan >= 88:
         sinyal = "GÜÇLÜ AL"
     elif puan >= min_puan:
         sinyal = "AL"
@@ -1115,8 +1115,9 @@ else:
     kolon1, kolon2, kolon3, kolon4 = st.columns(4)
 
     kolon1.metric(
-        "Taranan",
-        len(taranacaklar),
+    "Geçerli analiz",
+    len(tablo),
+)
     )
 
     kolon2.metric(
